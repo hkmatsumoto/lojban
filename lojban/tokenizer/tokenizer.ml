@@ -4,6 +4,21 @@ type token =
   | Brivla of string
   | Ma'ovla of string
   | Cmevla of string
+  | String of string
+
+let string_of_token = function
+  | Brivla s -> s
+  | Ma'ovla s -> s
+  | Cmevla s -> s
+  | String s -> s
+
+let ( = ) a b =
+  match (a, b) with
+  | Brivla s1, Brivla s2 when String.equal s1 s2 -> true
+  | Ma'ovla s1, Ma'ovla s2 when String.equal s1 s2 -> true
+  | Cmevla s1, Cmevla s2 when String.equal s1 s2 -> true
+  | String s1, String s2 when String.equal s1 s2 -> true
+  | _, _ -> false
 
 let consonants = "bcdfgjklmnprstvxz'"
 
@@ -35,10 +50,10 @@ let is_cmevla ident =
 
 let is_ma'ovla ident = not (is_brivla ident || is_cmevla ident)
 
-let rec tokenize code =
+let rec classify code =
   match code with
   | [] -> []
-  | ' ' :: tl -> tokenize tl
+  | ' ' :: tl -> classify tl
   | hd :: _ when is_valid_letter hd ->
       let ident, rest = extract_string is_valid_letter code in
       let str = String.of_char_list ident in
@@ -49,7 +64,23 @@ let rec tokenize code =
         | i when is_cmevla i -> Cmevla str
         | _ -> failwith "unreachable"
       in
-      token :: tokenize rest
+      token :: classify rest
   | _ -> failwith "invalid char"
 
-let f code = String.to_list code |> tokenize
+let rec tokenize words =
+  let rec aux acc = function
+    | [] -> (acc, [])
+    | hd :: tl when hd = Ma'ovla "li'u" -> (acc, tl)
+    | hd :: tl -> (
+        match String.length acc with
+        | 0 -> aux (string_of_token hd) tl
+        | _ -> aux (acc ^ " " ^ string_of_token hd) tl )
+  in
+  match words with
+  | [] -> []
+  | hd :: tl when hd = Ma'ovla "lu" ->
+      let str, rest = aux "" tl in
+      String str :: tokenize rest
+  | hd :: tl -> hd :: tokenize tl
+
+let f code = String.to_list code |> classify |> tokenize
